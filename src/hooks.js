@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 
 export const useSearch = (query) => {
@@ -9,9 +9,24 @@ export const useSearch = (query) => {
     error: ''
   });
 
+  const cancelToken = useRef(null);
+
   useEffect(() => {
+    if(query.length < 3){
+      return;
+    }
+
+    if(cancelToken.current){
+      cancelToken.current.cancel();
+      console.log("setting cancel request")
+    }
+
+    cancelToken.current = axios.CancelToken.source();
+
     // Make a request for a user with a given ID
-    axios.get(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${query}&origin=*`)
+    axios.get(`https://en.wikipedia.org/w/api.php?action=opensearch&search=${query}&origin=*`, {
+      cancelToken: cancelToken.current.token
+    })
     .then(function (response) {
       // handle success
       const parsedResponse = [];
@@ -31,12 +46,16 @@ export const useSearch = (query) => {
     })
     .catch(function (error) {
       // handle error
+      if (axios.isCancel(error)) {
+        console.log("catch canceled")
+        return;
+      }
+
       setState({
         articles: [],
         status: 'ERROR',
         error: error
       });
-      // debugger
     })
   }, [query]);
     
